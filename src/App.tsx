@@ -17,6 +17,8 @@ const initialOperationData: OperationData[] = [
   { id: 1, date: new Date('2024-04-19'), startTime: new Date('2024-04-19T08:00:00'), endTime: new Date('2024-04-19T10:00:00') },
   { id: 2, date: new Date('2024-04-19'), startTime: new Date('2024-04-19T11:00:00'), endTime: new Date('2024-04-19T13:00:00') },
   { id: 3, date: new Date('2024-04-20'), startTime: new Date('2024-04-20T14:00:00'), endTime: new Date('2024-04-20T16:00:00') },
+  { id: 4, date: new Date('2024-04-21'), startTime: new Date('2024-04-21T14:00:00'), endTime: new Date('2024-04-21T16:00:00') },
+  { id: 5, date: new Date('2024-04-18'), startTime: new Date('2024-04-18T08:00:00'), endTime: new Date('2024-04-18T10:00:00') },
 ];
 
 const DragAndDropList: React.FC = () => {
@@ -35,8 +37,12 @@ const DragAndDropList: React.FC = () => {
     if (operationIndex === -1) return;
 
     const operation = operations[operationIndex];
-    if (operation.date.toDateString() !== tourDate.toDateString()) return; // 開始日が違う操作は追加しない
-
+    // ツアーと日付が同じ or 翌日日付のもの以外は弾く
+    if (operation.date < tourDate) return;
+    // 翌々日未満
+    const tourTomorrowDate = new Date(tourDate.getTime() + (48 * 60 * 60 * 1000));
+    tourDate.setHours(0, 0, 0, 0);
+    if (tourTomorrowDate < operation.date) return;
     const tourIndex = tours.findIndex(t => t.id === tourId);
     if (tourIndex === -1) return;
 
@@ -80,10 +86,10 @@ const DragAndDropList: React.FC = () => {
 
   const renderTimeBlocks = () => {
     const timeBlocks = [];
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 48; i++) {
       timeBlocks.push(
         <div key={i} style={{ flex: '0 0 auto', width: '50px', borderRight: '1px solid #ccc', padding: '5px 0', textAlign: 'center' }}>
-          {`${i}:00`}
+          {`${i % 24}:00`}
         </div>
       );
     }
@@ -101,25 +107,7 @@ const DragAndDropList: React.FC = () => {
   });
 
   return (
-    <div style={{ display: 'flex' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', marginRight: '10px', borderBottom: '1px solid #ccc' }}>
-        {Object.entries(groupedOperations).map(([date, ops]) => (
-          <div key={date} style={{ marginBottom: '20px' }}>
-            <h2>{date}</h2>
-            {ops.map(operation => (
-              <div
-                key={operation.id}
-                draggable
-                onDragStart={e => handleDragStart(e, operation.id)}
-                style={{ margin: '5px 0', padding: '5px', border: '1px solid #ccc', borderRadius: '5px' }}
-              >
-                Operation: {operation.startTime.toLocaleTimeString()} - {operation.endTime.toLocaleTimeString()}
-              </div>
-            ))}
-            <button onClick={() => handleAddTour(new Date(date))}>Add Tour</button>
-          </div>
-        ))}
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{ flexGrow: 1 }}>
         {tours.map(tour => (
           <div key={tour.id} onDrop={e => handleDrop(e, tour.id, tour.date)} onDragOver={handleDragOver} style={{ marginBottom: '20px', position: 'relative' }}>
@@ -131,7 +119,15 @@ const DragAndDropList: React.FC = () => {
               {renderTimeBlocks()}
               {tour.operations.map(operation => {
                 const operationDuration = operation.endTime.getTime() - operation.startTime.getTime();
-                const operationStartTimePercentage = (operation.startTime.getHours() * 60 + operation.startTime.getMinutes()) / (24 * 60) * 100;
+                const tourTomorrowDate = new Date(tour.date.getTime() + 24 * 60 * 60 * 1000).setHours(0,0,0,0);
+                const operationDate = new Date(operation.date.getTime()).setHours(0,0,0,0);
+                console.log(tourTomorrowDate)
+                console.log(operationDate)
+                const isTomorrowOperation = (tourTomorrowDate === operationDate)
+                console.log(isTomorrowOperation)
+                const operationStartTimePercentage = !isTomorrowOperation 
+                  ? (operation.startTime.getHours() * 60 + operation.startTime.getMinutes()) / (24 * 60) * 100
+                  : (operation.startTime.getHours() * 60 + operation.startTime.getMinutes()) / (24 * 60) * 100 + 100;
                 const operationWidthPercentage = (operationDuration / (24 * 60 * 60 * 1000)) * 100;
                 return (
                   <div
@@ -159,6 +155,24 @@ const DragAndDropList: React.FC = () => {
                 );
               })}
             </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', marginRight: '10px', borderBottom: '1px solid #ccc' }}>
+        {Object.entries(groupedOperations).map(([date, ops]) => (
+          <div key={date} style={{ marginBottom: '20px' }}>
+            <h2>{date}</h2>
+            {ops.map(operation => (
+              <div
+                key={operation.id}
+                draggable
+                onDragStart={e => handleDragStart(e, operation.id)}
+                style={{ margin: '5px 0', padding: '5px', border: '1px solid #ccc', borderRadius: '5px' }}
+              >
+                Operation: {operation.startTime.toLocaleTimeString()} - {operation.endTime.toLocaleTimeString()}
+              </div>
+            ))}
+            <button onClick={() => handleAddTour(new Date(date))}>Add Tour</button>
           </div>
         ))}
       </div>
